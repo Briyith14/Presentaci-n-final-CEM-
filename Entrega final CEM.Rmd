@@ -1,0 +1,504 @@
+---
+title: "Desigualdad territorial en la atención de violencia contra la mujer: un estudio basado en datos de los CEM"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(rio)
+library(ggplot2)
+library(dplyr)
+library(psych)
+data=import("https://github.com/Briyith14/Entrega-3-/raw/refs/heads/main/Bse%20Dashboard.csv")%>%
+mutate(across(where(is.numeric), ~ifelse(is.na(.), 0, .)))
+
+```
+
+```{r,include=FALSE}
+str(data)
+```
+
+
+```{r,include=FALSE}
+data$PoblacionMujer=as.numeric(data$PoblacionMujer)
+data$PoblaciónHombre=as.numeric(data$PoblaciónHombre)
+data$CasosAtentidos=as.numeric(data$CasosAtentidos)
+data$Personas_informadas=as.numeric(data$Personas_informadas)
+data$numeroCEM=as.numeric(data$numeroCEM)
+data$V_Psicológica=as.numeric(data$V_Psicológica)
+data$V_Física=as.numeric(data$V_Física)
+data$V_Sexual=as.numeric(data$V_Sexual)
+```
+
+
+```{r,include=FALSE}
+numeric_data <- data %>% 
+  select(where(is.numeric))
+```
+
+```{r,include=FALSE}
+cor_matrix <- cor(numeric_data, use = "pairwise.complete.obs")
+```
+
+```{r,include=FALSE}
+bartlett_result <- cortest.bartlett(cor_matrix, n = nrow(numeric_data))
+bartlett_result
+```
+
+```{r,include=FALSE}
+es_singular <- det(cor_matrix) == 0
+es_singular
+```
+
+Presentación {data-icon="fa-sharp-duotone fa-solid fa-location-dot"}
+===================================== 
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+**1. Introducción**
+
+Nuestro estudio analiza cómo se distribuyen los casos atendidos por los Centros de Emergencia Mujer (CEM) en las provincias del Perú. El interés surge porque, pese al incremento de la violencia y feminicidios, el acceso a atención especializada sigue siendo desigual, tanto por factores institucionales como territoriales.
+
+**2. ¿Por qué estudiar este tema?**
+
+La violencia contra la mujer continúa siendo un problema poco atendido y poco denunciado, lo que genera desconfianza en las instituciones.
+
+Muchas mujeres desconocen la existencia o funciones de los CEM, o viven en zonas donde estos servicios no son accesibles.
+
+El nivel de información y la ubicación geográfica influyen directamente en si una mujer decide denunciar o solicitar apoyo.
+
+Analizar esta desigualdad nos permite comprender qué territorios tienen mayores brechas y por qué.
+
+**3. Pregunta de investigación**
+
+¿Qué factores explican el número de casos atendidos por los CEM en las provincias del Perú?
+
+**4. Hipótesis**
+
+El número de casos atendidos aumenta en provincias donde:
+
+*Hay más CEM disponibles.
+
+*La población posee mayor información sobre estos servicios.
+
+*Existen mayores tasas de violencia o feminicidios.
+
+*La población femenina es más numerosa o está más concentrada.
+
+*Además, se espera que las zonas urbanas presenten más denuncias que las zonas rurales, debido al acceso a servicios, transporte e información.
+
+
+
+Estadística descriptiva {data-icon="fa-sharp-duotone fa-solid fa-location-dot"}
+===================================== 
+
+Column {data-width=60%}
+-----------------------------------------------------------------------
+
+### Variable dependiente: Casos atendidos 
+
+**a. VARIABLE DEPENDIENTE:** 
+La variable dependiente de esta investigación corresponde a la cantidad de casos atendidos en los CEM. Se trata de una variable cuantitativa que permite medir las denuncias registradas oficialmente en los CEM durante el año 2024 en las distintas provincias del Perú. En el histograma se observa que:
+
+1.La mayoría de provincias reportan muy pocos casos atendidos, concentrándose cerca del valor 0. Esto muestra una distribución altamente asimétrica a la derecha (sesgada).
+
+2.Existen valores extremadamente altos (outliers), en los rangos de 10 000 a más de 30 000 casos, correspondientes a provincias con gran población urbana.
+
+3.Las líneas verticales representan medidas de tendencia central:
+
+*La media está mucho más a la derecha, arrastrada por los valores extremos.
+
+*La mediana está más cerca de cero, lo que confirma que la mayoría de provincias atienden pocos casos.
+
+4.Esta distribución indica gran desigualdad en la carga de atención entre provincias —los CEM de algunas zonas urbanas atienden una cantidad desproporcionadamente alta de casos.
+
+```{r,include=FALSE}
+summary(data$CasosAtentidos)
+```
+
+Column {data-width=40%}
+-----------------------------------------------------------------------
+
+```{r fig.height=5, fig.width=8}
+ggplot(data,aes(x=CasosAtentidos))+
+geom_histogram(binwidth = 3000,color="black",fill="skyblue",alpha=0.7)+
+geom_vline(xintercept = 266, color = "red", linetype = "dashed", size = 1.2)+
+geom_vline(xintercept = 814.4, color = "green", linetype = "dashed", size = 1.2)+
+xlab("Puntaje de casos atendidos")+
+ylab("Frecuencia")+
+theme_minimal(base_size = 14)+
+theme(
+  panel.grid.major = element_line(color = "gray80"),
+  panel.grid.minor = element_blank(),
+  axis.text = element_text(color = "black"),
+  axis.title = element_text(face = "bold"))
+```
+
+VARIABLES INDEPENDIENTES  {data-icon="fa-sharp-duotone fa-solid fa-location-dot"}
+===================================== 
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Variable independiente categórica : Zona
+
+```{r}
+library(ggrepel)
+
+data_summary <- as.data.frame(table(data$Zona))
+
+colnames(data_summary)[1] <- "Zona"   # <-- renombramos Var1 a Zona
+
+data_summary <- data_summary %>%
+  mutate(percentage = Freq / sum(Freq) * 100)
+
+ggplot(data_summary, aes(x = "", y = Freq, fill = Zona)) +
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar("y") +
+  geom_label_repel(
+    aes(label = paste0(round(percentage, 1), "%")),
+    position = position_stack(vjust = 0.5),
+    size = 4,
+    show.legend = FALSE
+  ) +
+  labs(title = "Proporción de Zonas") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+
+### Variable independientes númericas 
+
+```{r}
+library(kableExtra)
+library(DT)
+estadísticas=data%>%
+  summarise(Mínimo=sapply(select(data,Tasa_feminicidios,Personas_informadas,PoblacionMujer,PoblaciónHombre,numeroCEM,CEM_comisaria, V_Psicológica, V_Sexual,V_Física),min,na.rm=T),
+    Maximo = sapply(select(data,Tasa_feminicidios,Personas_informadas,PoblacionMujer,PoblaciónHombre,numeroCEM,CEM_comisaria, V_Psicológica, V_Sexual,V_Física),max,na.rm=T),
+    Media = round(sapply(select(data,Tasa_feminicidios,Personas_informadas,PoblacionMujer,PoblaciónHombre,numeroCEM,CEM_comisaria, V_Psicológica, V_Sexual,V_Física),mean,na.rm=T),2),
+    Mediana = sapply(select(data,Tasa_feminicidios,Personas_informadas,PoblacionMujer,PoblaciónHombre,numeroCEM,CEM_comisaria, V_Psicológica, V_Sexual,V_Física),median,na.rm=T),
+    Des.estandar = round(sapply(select(data, Tasa_feminicidios,Personas_informadas,PoblacionMujer,PoblaciónHombre,numeroCEM,CEM_comisaria, V_Psicológica, V_Sexual,V_Física),sd,na.rm=T),2))
+
+rownames(estadísticas)= c("Tasa de feminicidios","Personas informadas","Población Mujer","Población Hombre","Número de CEM","CEM_comisaría", "V_Psicológica", "V_Sexual","V_Física")
+datatable(estadísticas)
+```
+
+CORRELACIONES NUMERICAS {data-icon="fa-sharp-duotone fa-solid fa-location-dot"}
+===================================== 
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Casos atendidos y tasa de feminicidios
+
+```{r}
+library(ggrepel)
+
+base1 <- ggplot(data = data, aes(x = CasosAtentidos, y = Tasa_feminicidios))
+
+scatter <- base1 + 
+  geom_point(aes(color = PROVINCIA), size = 2)  
+scatterText <- scatter + 
+  geom_text_repel(aes(label = PROVINCIA, color = PROVINCIA), size = 3)  # Etiquetas de color
+
+scatterText + theme(legend.position = "none")
+```
+
+### Casos atendidos y personas informadas
+
+```{r}
+base2 <- ggplot(data = data, aes(x = CasosAtentidos, y =Personas_informadas ))
+
+scatter <- base2 + 
+  geom_point(aes(color = PROVINCIA), size = 2) 
+
+scatterText <- scatter + 
+  geom_text_repel(aes(label = PROVINCIA, color = PROVINCIA), size = 3)  
+scatterText + theme(legend.position = "none")
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Casos atendido y población Mujer
+```{r}
+base3 <- ggplot(data = data, aes(x = CasosAtentidos, y = PoblacionMujer))
+
+scatter <- base3 + 
+  geom_point(aes(color = PROVINCIA), size = 2)  
+scatterText <- scatter + 
+  geom_text_repel(aes(label = PROVINCIA, color = PROVINCIA), size = 3)  
+scatterText + theme(legend.position = "none")
+```
+
+### Casos atendidos y población hombre
+
+```{r}
+base3 <- ggplot(data = data, aes(x = CasosAtentidos, y = PoblaciónHombre))
+
+scatter <- base3 + 
+  geom_point(aes(color = PROVINCIA), size = 2)  
+scatterText <- scatter + 
+  geom_text_repel(aes(label = PROVINCIA, color = PROVINCIA), size = 3)  
+scatterText + theme(legend.position = "none")
+```
+
+### Casos Atendidos y número de CEM
+
+```{r}
+base4 <- ggplot(data = data, aes(x = CasosAtentidos, y = numeroCEM))
+
+scatter <- base4+ 
+  geom_point(aes(color = PROVINCIA), size = 2)  
+scatterText <- scatter + 
+  geom_text_repel(aes(label = PROVINCIA, color = PROVINCIA), size = 3)  
+scatterText + theme(legend.position = "none")
+```
+
+### Casos Atendidos y número de denuncia de violencia física
+
+```{r}
+base5 <- ggplot(data = data, aes(x = CasosAtentidos, y = V_Física))
+
+scatter <- base5+ 
+  geom_point(aes(color = PROVINCIA), size = 2)  
+scatterText <- scatter + 
+  geom_text_repel(aes(label = PROVINCIA, color = PROVINCIA), size = 3)  
+scatterText + theme(legend.position = "none")
+```
+
+CORRELACIONES CATEGÓRICAS {data-icon="fa-sharp-duotone fa-solid fa-location-dot"}
+===================================== 
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Casos atendido y Zona
+
+```{r}
+library(viridis)
+
+base6 <- ggplot(data = data, aes(x = Zona, y = CasosAtentidos, fill = Zona, color = Zona))
+
+base6 + 
+  geom_boxplot(notch = TRUE, alpha = 0.5) +  
+  geom_jitter(size = 0.4, alpha = 0.9, width = 0.2) + 
+  scale_fill_viridis(discrete = TRUE, option = "B", alpha = 0.5) +  
+  scale_color_viridis(discrete = TRUE, option = "B") +  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(legend.position = "none")
+```
+
+
+
+REGRESIONES {data-icon="fa-sharp-duotone fa-solid fa-location-dot"}
+===================================== 
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Modelo general: linealidad
+
+```{r}
+modelo1 = lm(CasosAtentidos ~ Tasa_feminicidios + Personas_informadas + PoblacionMujer+  numeroCEM + CEM_comisaria, data = data)
+plot(modelo1, 1)
+# Que la raya sea horizontal y cercano a 0
+```
+
+### Modelo general: homocedasticidad
+
+```{r}
+plot(modelo1, 3)
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Modelo general: normalidad de residuos
+
+```{r}
+plot(modelo1, 2)
+```
+
+
+CLÚSTERS {data-icon="fa-sharp-duotone fa-solid fa-location-dot"}
+===================================== 
+
+Column {data-width=450}
+-----------------------------------------------------------------------
+
+### PAM
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE}
+library(cluster)
+library(factoextra)
+dataClus <- data[, c(3,4,5,8, 10)]
+
+# Fijar nombres
+row.names(dataClus) <- data$PROVINCIA
+
+# Reemplazar Inf por NA
+dataClus[dataClus == Inf | dataClus == -Inf] <- NA
+
+# Eliminar NA
+dataClus <- na.omit(dataClus)
+
+
+g.dist <- daisy(dataClus, metric = "gower")
+
+dummy <- capture.output(
+  plot(fviz_nbclust(dataClus, pam, diss = g.dist, method = "gap_stat", k.max = 10,verbose = FALSE)))
+
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### JERÁRQUICA: AGNES
+
+```{r}
+fviz_nbclust(dataClus, hcut,diss=g.dist,method = "gap_stat",k.max = 10,verbose = F,hc_func = "agnes")
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### JERARQUICA: DIANA
+
+```{r}
+fviz_nbclust(dataClus, hcut,diss=g.dist,method = "gap_stat",k.max = 10,verbose = F,hc_func = "diana")
+```
+
+Análisis Factorial (EFA) {data-icon="fa-sharp-duotone fa-solid fa-location-dot"}
+=====================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+Posterior a la realización del gráfico de correlación se realizó el corest.barlett y is.singular.matrix(cor_matrix). En ambos casos, el resultado fue FALSE por lo que se procedió con la evaluación de factores. 
+
+### Gráfico de correlación 
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+crear_corrplot <- function(data) {
+  
+  # Seleccionar variables numéricas relevantes
+  datos_corr <- data %>% 
+    select(
+      PoblacionMujer,
+      PoblaciónHombre,
+      CasosAtentidos,
+      Personas_informadas,
+      numeroCEM,
+      Tasa_feminicidios,
+      V_Psicológica,
+      V_Física,
+      V_Sexual
+    )
+  
+  # Matriz de correlaciones
+  cor_matrix <- cor(datos_corr, use = "pairwise.complete.obs")
+  
+  # Gráfico corrplot
+  corrplot(
+    cor_matrix,
+    method = "color",
+    col = colorRampPalette(c("white", "purple", "pink"))(200),
+    addCoef.col = "black",
+    tl.col = "black",
+    cl.lim = c(-1, 1),
+    number.cex = 0.7,
+    tl.cex = 0.8
+  )
+  
+  invisible(cor_matrix)
+}
+```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+library(corrplot)
+crear_corrplot(data)
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Evaluación de cantidad de factores recomendados
+
+```{r,include=FALSE}
+vars <- c(
+  "PoblacionMujer",
+  "PoblaciónHombre",
+  "CasosAtentidos",
+  "Personas_informadas",
+  "numeroCEM",
+  "Tasa_feminicidios",
+  "V_Psicológica",
+  "V_Física",
+  "V_Sexual"
+)
+
+datos_corr <- data %>% 
+  select(all_of(vars))
+
+# Convertir a numérico forzando y mostrando errores
+datos_corr <- datos_corr %>%
+  mutate(across(everything(), ~as.numeric(as.character(.))))
+
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(cluster)
+library(psych)
+dummy=capture.output(fa_parallel <- fa.parallel(datos_corr, fm = "ml", fa = "fa"))
+
+```
+
+### Chart B
+
+```{r}
+library(ggplot2)
+library(viridis)
+
+top_provincias <- data %>%
+  group_by(PROVINCIA) %>%
+  summarise(Total = sum(CasosAtentidos, na.rm = TRUE)) %>%
+  arrange(desc(Total)) %>%
+  slice(1:10)   # cambia a 10, 20, lo que gustes
+
+ggplot(top_provincias, aes(x = reorder(PROVINCIA, Total), y = Total, fill = Total)) +
+  geom_col() +
+  coord_flip() +
+  ggtitle("Top 10 Provincias con más Casos Atendidos") +
+  theme_minimal() +
+  viridis::scale_fill_viridis(option = "magma") +
+  theme(legend.position = "none")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
